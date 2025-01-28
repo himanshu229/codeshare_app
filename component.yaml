@@ -1,7 +1,20 @@
-schemaVersion: 1.0 
- # Example endpoint configuration
-endpoints:
-- name: my-service-endpoint
-  service:
-     port: <SERVICE_PORT>
-  type: REST
+version: '3.8'
+
+services:
+  codeshare_server:
+    image: node:20
+    container_name: codeshare_server
+    working_dir: /usr/src/app
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "3001:3001"  # Exposes port 3000, adjust if needed
+    command: node server.js  # Runs the server.js file
+    environment:
+      - NODE_ENV=development
+    networks:
+      - codeshare_network
+
+networks:
+  codeshare_network:
+    driver: bridge
