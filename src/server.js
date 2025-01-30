@@ -2,10 +2,24 @@ const { createServer } = require('http');
 const path = require('path');
 const { Server } = require('socket.io');
 const fs = require('fs');
+const os = require('os');
 
 // Set up port and environment
 const dev = process.env.NODE_ENV !== 'production';
 const port = process.env.PORT || 3001;
+
+function getLocalIP() {
+  const networkInterfaces = os.networkInterfaces();
+  for (let interfaceName in networkInterfaces) {
+    for (let i = 0; i < networkInterfaces[interfaceName].length; i++) {
+      const iface = networkInterfaces[interfaceName][i];
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
 
 // Create the HTTP server
 const server = createServer((req, res) => {
@@ -68,7 +82,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// Start the server
-server.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+const serverIP = getLocalIP();
+server.listen(port, serverIP, () => {
+  console.log(`Server running on ${serverIP}:${port}`);
 });
