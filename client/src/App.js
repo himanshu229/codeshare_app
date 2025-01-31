@@ -1,4 +1,5 @@
 import { useState } from "react";
+import MonacoEditor from "react-monaco-editor";
 import { useSocket } from "./hooks/useSocket";
 
 export default function App() {
@@ -14,7 +15,11 @@ export default function App() {
   return (
     <div className="home-container">
       <div className="content-box">
-        <div className={`status-text ${isConnected ? "connected" : "disconnected"}`}>
+        <div
+          className={`status-text ${
+            isConnected ? "connected" : "disconnected"
+          }`}
+        >
           {isConnected ? "Connected" : "Disconnected"}{" "}
           <span
             className="toggle-read-mode"
@@ -24,16 +29,19 @@ export default function App() {
           </span>
         </div>
         <div className="message-box">
-          {isReadEnabled ? (
-            <p className="text-input">{messages.length > 0 ? messages : ".........................."}</p>
-          ) : (
-            <textarea
-              value={textMessage}
-              onChange={(e) => handleChange(e.target.value)}
-              className="text-input"
-              placeholder="Type a message..."
-            />
-          )}
+          <MonacoEditor
+            height="100%"
+            value={isReadEnabled ? messages : textMessage}
+            onChange={handleChange}
+            className="text-input"
+            placeholder="Type a message..."
+            options={{
+              selectOnLineNumbers: true,
+              minimap: { enabled: false },
+              wordWrap: "on",
+              readOnly: isReadEnabled,
+            }}
+          />
         </div>
       </div>
     </div>
