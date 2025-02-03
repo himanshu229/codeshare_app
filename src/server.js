@@ -9,15 +9,15 @@ const dev = process.env.NODE_ENV !== 'production';
 const port = process.env.PORT || 3001;
 
 function getLocalIP() {
-  const networkInterfaces = os.networkInterfaces();
-  for (let interfaceName in networkInterfaces) {
-    for (let i = 0; i < networkInterfaces[interfaceName].length; i++) {
-      const iface = networkInterfaces[interfaceName][i];
-      if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
-      }
-    }
-  }
+  // const networkInterfaces = os.networkInterfaces();
+  // for (let interfaceName in networkInterfaces) {
+  //   for (let i = 0; i < networkInterfaces[interfaceName].length; i++) {
+  //     const iface = networkInterfaces[interfaceName][i];
+  //     if (iface.family === 'IPv4' && !iface.internal) {
+  //       return iface.address;
+  //     }
+  //   }
+  // }
   return 'localhost';
 }
 
@@ -60,6 +60,7 @@ const io = new Server(server, {
 
 // Store data for clients
 let dataStore = "";
+let finding = false;
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
@@ -73,7 +74,15 @@ io.on('connection', (socket) => {
   // Listen for incoming chat messages
   socket.on('/send-message', (msg) => {
     dataStore = msg;
+    if(msg.length > 0){
+      io.emit('/find-message', false);
+    }
     io.emit('/send-message', msg);
+  });
+
+  socket.on('/find-message', (msg) => {
+    finding = msg;
+    io.emit('/find-message', msg);
   });
 
   // Handle client disconnect

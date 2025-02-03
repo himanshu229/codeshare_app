@@ -3,7 +3,7 @@ import MonacoEditor from "react-monaco-editor";
 import { useSocket } from "./hooks/useSocket";
 
 export default function App() {
-  const { isConnected, messages, sendMessage } = useSocket();
+  const { isConnected, messages, sendMessage, isFinding, setFinding } = useSocket();
   const [textMessage, setTextMessage] = useState("");
   const [isReadEnabled, setIsReadEnabled] = useState(false);
 
@@ -27,6 +27,8 @@ export default function App() {
           >
             {isReadEnabled ? "Edit Text" : "Read Text"}
           </span>
+
+          <span className={`toggle-find-mode ${isFinding && "toggle-find-mode-red"}`} onClick={() => setFinding(!isFinding)}>{isFinding ? "Finding....." : "Find" }</span>
         </div>
         <div className="message-box">
           <MonacoEditor
