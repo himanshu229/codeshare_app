@@ -1,97 +1,102 @@
-const { createServer } = require('http');
+const fs = require('fs');
+const https = require('https');
+const express = require('express');
 const path = require('path');
 const { Server } = require('socket.io');
-const fs = require('fs');
+const robot = require('robotjs');
 const os = require('os');
+const cors = require('cors');
 
-// Set up port and environment
-const dev = process.env.NODE_ENV !== 'production';
 const port = process.env.PORT || 3001;
 
 function getLocalIP() {
-  // const networkInterfaces = os.networkInterfaces();
-  // for (let interfaceName in networkInterfaces) {
-  //   for (let i = 0; i < networkInterfaces[interfaceName].length; i++) {
-  //     const iface = networkInterfaces[interfaceName][i];
-  //     if (iface.family === 'IPv4' && !iface.internal) {
-  //       return iface.address;
-  //     }
-  //   }
-  // }
+  const networkInterfaces = os.networkInterfaces();
+  for (let interfaceName in networkInterfaces) {
+    for (let iface of networkInterfaces[interfaceName]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
   return 'localhost';
 }
 
-// Create the HTTP server
-const server = createServer((req, res) => {
+const serverIP = getLocalIP();
 
-  // Serving static files (build folder in production)
-  const filePath = path.join(__dirname, "../client/build", req.url === '/' ? 'index.html' : req.url);
-  const extname = path.extname(filePath);
-  let contentType = 'text/html';
+const options = {
+  key: fs.readFileSync('./ssl/server.key'),
+  cert: fs.readFileSync('./ssl/server.cert')
+};
 
-  if (extname === '.js') contentType = 'application/javascript';
-  if (extname === '.css') contentType = 'text/css';
-  if (extname === '.json') contentType = 'application/json';
-  if (extname === '.png') contentType = 'image/png';
-  if (extname === '.jpg') contentType = 'image/jpg';
-  if (extname === '.jpeg') contentType = 'image/jpeg';
-  if (extname === '.gif') contentType = 'image/gif';
+const app = express();
+app.use(cors());
+app.use(express.static(path.join(__dirname, '../client/build')));
 
-  // Read the file and send it to the client
-  fs.readFile(filePath, (err, content) => {
-    if (err) {
-      res.writeHead(500);
-      res.end('Server Error');
-    } else {
-      res.writeHead(200, { 'Content-Type': contentType });
-      res.end(content);
-    }
-  });
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
 });
 
-// Initialize Socket.io
-const io = new Server(server, {
+const httpsServer = https.createServer(options, app);
+
+const io = new Server(httpsServer, {
   cors: {
-    origin: "*", 
+    origin: "*",
     allowedHeaders: ["my-custom-header"],
     credentials: true,
   },
 });
 
-// Store data for clients
-let dataStore = "";
-let finding = false;
-
-// Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('A client connected');
+  console.log('A client connected:', socket.id);
 
-  // Send stored data to any new client
-  if (dataStore.length > 0) {
-    io.emit('/send-message', dataStore);
-  }
+  socket.on('screen-data', (data) => {
+    socket.broadcast.emit('screen-data', data);
+  });
 
-  // Listen for incoming chat messages
-  socket.on('/send-message', (msg) => {
-    dataStore = msg;
-    if(msg.length > 0){
-      io.emit('/find-message', false);
+  socket.on('mouse-event', (data) => {
+    const { type, x, y, deltaY } = data;
+    console.log("Mouse", data)
+    switch (type) {
+      case 'mousedown':
+        robot.mouseToggle('down');
+        break;
+      case 'mouseup':
+        robot.mouseToggle('up');
+        break;
+      case 'mousemove':
+        robot.moveMouse(x, y);
+        break;
+      case 'click':
+        robot.mouseClick();
+        break;
+      case 'rightclick':
+        robot.mouseClick('right');
+        break;
+      case 'scroll':
+        robot.scrollMouse(0, deltaY);
+        break;
+      default:
+        console.warn(`Unhandled mouse event type: ${type}`);
     }
-    io.emit('/send-message', msg);
+  });
+  
+  socket.on('keyboard-event', (data) => {
+    const { type, key } = data;
+    try {
+      console.log("Key", data)
+      robot.keyToggle(key, type);
+    } catch (error) {
+      console.error(`Error simulating key event: ${error.message}`);
+    }
   });
 
-  socket.on('/find-message', (msg) => {
-    finding = msg;
-    io.emit('/find-message', msg);
-  });
-
-  // Handle client disconnect
   socket.on('disconnect', () => {
-    console.log('A client disconnected');
+    console.log('A client disconnected:', socket.id);
   });
 });
 
-const serverIP = getLocalIP();
-server.listen(port, serverIP, () => {
-  console.log(`Server running on ${serverIP}:${port}`);
+httpsServer.listen(port, serverIP, () => {
+  console.log(`✅ HTTPS Server running at:`);
+  console.log(`🔹 https://localhost:${port}`);
+  console.log(`🔹 https://${serverIP}:${port}`);
 });
